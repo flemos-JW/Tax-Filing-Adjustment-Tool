@@ -45,7 +45,7 @@ def parse_pasted_table(text, expected_cols):
             if df.shape[1] >= len(expected_cols):
                 df = df.iloc[:, :len(expected_cols)]
                 df.columns = expected_cols
-                df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+                df = df.apply(lambda s: s.str.strip() if s.dtype == object else s)
                 return df
         except Exception:
             continue
