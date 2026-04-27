@@ -5,6 +5,23 @@ import pandas as pd
 import streamlit as st
 
 st.set_page_config(page_title="Tax Filing Adjustment Bulk Upload Tool", layout="wide")
+
+# ---------------------------------------------------------------------------
+# Password gate
+# ---------------------------------------------------------------------------
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    st.title("Tax Filing Adjustment Bulk Upload Tool")
+    pw = st.text_input("Enter password", type="password")
+    if pw == "PayOps2026":
+        st.session_state.authenticated = True
+        st.rerun()
+    elif pw:
+        st.error("Incorrect password.")
+    st.stop()
+
 st.title("Tax Filing Adjustment Bulk Upload Tool")
 
 st.markdown("""
