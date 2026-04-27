@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tax Filing Adjustment Bulk Upload Tool</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f0f2f6;
+      --surface: #ffffff;
+      --border: #d9dde8;
+      --text: #1a1a2e;
+      --text-muted: #6b7280;
+      --accent: #ff4b4b;
+      --accent-hover: #e03e3e;
+      --tab-active-border: #ff4b4b;
+      --metric-bg: #f8f9fb;
+      --warn-bg: #fff3cd;
+      --warn-border: #ffc107;
+      --info-bg: #e8f4fd;
+      --info-border: #3b9de1;
+      --error-bg: #fde8e8;
+      --error-border: #e03e3e;
+      --radius: 6px;
+      --shadow: 0 1px 3px rgba(0,0,0,.08);
+    }
+
+    body {
+      font-family: "Source Sans Pro", "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Auth screen ── */
+    #auth-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    #auth-screen h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    #auth-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 32px 40px;
+      width: 100%;
+      max-width: 380px;
+    }
+    #auth-box label {
+      display: block;
+      font-size: .875rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text-muted);
+    }
+    #auth-box input[type="password"] {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: .95rem;
+      outline: none;
+      transition: border-color .15s;
+    }
+    #auth-box input[type="password"]:focus { border-color: var(--accent); }
+    #auth-btn {
+      margin-top: 14px;
+      width: 100%;
+      padding: 10px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: .95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    #auth-btn:hover { background: var(--accent-hover); }
+    #auth-error {
+      margin-top: 10px;
+      padding: 8px 12px;
+      background: var(--error-bg);
+      border: 1px solid var(--error-border);
+      border-radius: var(--radius);
+      font-size: .875rem;
+      color: #c0392b;
+      display: none;
+    }
+
+    /* ── Main app ── */
+    #app { display: none; }
+
+    .app-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+    }
+    .app-header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    /* ── Tabs ── */
+    .tab-bar {
+      display: flex;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      gap: 4px;
+    }
+    .tab-btn {
+      padding: 12px 20px;
+      font-size: .925rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      transition: color .15s, border-color .15s;
+      margin-bottom: -1px;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--tab-active-border);
+    }
+
+    .tab-panel { display: none; padding: 28px 32px; }
+    .tab-panel.active { display: block; }
+
+    /* ── Layout helpers ── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px;
+    }
+    @media (max-width: 720px) {
+      .two-col { grid-template-columns: 1fr; }
+      .tab-panel { padding: 20px 16px; }
+      .app-header { padding: 14px 16px; }
+      .tab-bar { padding: 0 16px; }
+    }
+
+    /* ── Card / section ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      box-shadow: var(--shadow);
+    }
+    .section-header {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .section-caption {
+      font-size: .825rem;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      line-height: 1.45;
+    }
+    .section-caption a { color: #3b9de1; }
+
+    /* ── Form elements ── */
+    textarea, input[type="text"] {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 9px 12px;
+      font-size: .875rem;
+      font-family: "Courier New", monospace;
+      resize: vertical;
+      outline: none;
+      transition: border-color .15s;
+      background: #fafbfc;
+    }
+    textarea:focus, input[type="text"]:focus { border-color: var(--accent); background: #fff; }
+    textarea { height: 200px; }
+
+    label.field-label {
+      display: block;
+      font-size: .85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+    }
+    .field-group { margin-bottom: 16px; }
+    .field-group input[type="text"] { font-family: inherit; }
+
+    select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: .9rem;
+      background: #fafbfc;
+      outline: none;
+      cursor: pointer;
+    }
+    select:focus { border-color: var(--accent); }
+
+    hr.divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 22px 0;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 18px;
+      border-radius: var(--radius);
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background .15s, opacity .15s;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      width: 100%;
+      justify-content: center;
+    }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ── Metrics ── */
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+    .metric-card {
+      background: var(--metric-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      text-align: center;
+    }
+    .metric-value {
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .metric-label {
+      font-size: .8rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* ── Alerts ── */
+    .alert {
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      font-size: .875rem;
+      margin-bottom: 14px;
+      border-left: 4px solid;
+    }
+    .alert-info    { background: var(--info-bg);  border-color: var(--info-border);  color: #1a5276; }
+    .alert-warning { background: var(--warn-bg);  border-color: var(--warn-border);  color: #7d5a00; }
+    .alert-error   { background: var(--error-bg); border-color: var(--error-border); color: #922b21; }
+
+    /* ── Results table ── */
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 18px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .875rem;
+    }
+    thead th {
+      background: var(--metric-bg);
+      text-align: left;
+      padding: 9px 12px;
+      font-weight: 700;
+      font-size: .8rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody tr:hover { background: #f9f9fc; }
+    tbody td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #eef0f5;
+      vertical-align: middle;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tr.not-found { background: var(--warn-bg) !important; }
+    tr.not-found:hover { background: #ffeaa0 !important; }
+
+    /* ── Disambiguation selects inside table ── */
+    .disambig-section {
+      background: #fffdf0;
+      border: 1px solid var(--warn-border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      margin-bottom: 18px;
+    }
+    .disambig-section h4 {
+      font-size: .9rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #7d5a00;
+    }
+    .disambig-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .disambig-row label {
+      flex: 1;
+      font-size: .875rem;
+      font-weight: 500;
+    }
+    .disambig-row select { flex: 1; }
+
+    /* ── Unmatched expander ── */
+    .expander summary {
+      cursor: pointer;
+      font-size: .875rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      padding: 8px 0;
+      user-select: none;
+      list-style: none;
+    }
+    .expander summary::before {
+      content: "▶ ";
+      font-size: .75rem;
+    }
+    details[open] summary::before { content: "▼ "; }
+    .expander ul {
+      margin: 6px 0 0 16px;
+      font-size: .875rem;
+      line-height: 1.8;
+    }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center;
+      padding: 32px 16px;
+      color: var(--text-muted);
+      font-size: .9rem;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== AUTH SCREEN ===== -->
+<div id="auth-screen">
+  <h1>Tax Filing Adjustment Bulk Upload Tool</h1>
+  <div id="auth-box">
+    <label for="pw-input">Enter password</label>
+    <input type="password" id="pw-input" placeholder="Password" autocomplete="current-password" />
+    <div id="auth-error">Incorrect password. Please try again.</div>
+    <button id="auth-btn" type="button">Unlock</button>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="app">
+  <header class="app-header">
+    <h1>Tax Filing Adjustment Bulk Upload Tool</h1>
+  </header>
+
+  <nav class="tab-bar">
+    <button class="tab-btn active" data-tab="tab-mid">Name to MID Generator</button>
+    <button class="tab-btn" data-tab="tab-tax">Bulk Upload Generator</button>
+  </nav>
+
+  <!-- ─── TAB 1: Name to MID Generator ─── -->
+  <div id="tab-mid" class="tab-panel active">
+
+    <div class="two-col">
+      <!-- Table 1 -->
+      <div class="card">
+        <div class="section-header">Table 1 — Names &amp; Amounts</div>
+        <div class="section-caption">Paste a table with two columns: <strong>Last, First</strong> name and <strong>amount</strong></div>
+        <textarea id="table1-input" placeholder="Smith, John&#9;1500.00&#10;Doe, Jane&#9;2000.00" spellcheck="false"></textarea>
+      </div>
+      <!-- Table 2 -->
+      <div class="card">
+        <div class="section-header">Table 2 — MID Lookup</div>
+        <div class="section-caption">
+          Paste the results from this query:
+          <a href="https://redash.data.justworks.com/queries/5349" target="_blank" rel="noopener">redash query 5349</a>
+          <br>Expected columns: <strong>mid, last_name, first_name</strong>
+        </div>
+        <textarea id="table2-input" placeholder="M12345&#9;Smith&#9;John&#10;M67890&#9;Doe&#9;Jane" spellcheck="false"></textarea>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <div class="section-header" style="margin-bottom:14px">Results</div>
+    <div id="mid-results-area">
+      <div class="alert alert-info">Paste data into both tables above to generate results.</div>
+    </div>
+
+  </div><!-- /tab-mid -->
+
+  <!-- ─── TAB 2: Bulk Upload Generator ─── -->
+  <div id="tab-tax" class="tab-panel">
+
+    <div class="two-col" style="max-width:700px">
+      <div class="field-group">
+        <label class="field-label" for="tax-year">Tax Year</label>
+        <input type="text" id="tax-year" placeholder="e.g. 2025" />
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="w2-field">W2 Field</label>
+        <input type="text" id="w2-field" placeholder="e.g. Box 12 - Code DD" />
+      </div>
+    </div>
+
+    <div class="field-group" style="max-width:700px">
+      <label class="field-label" for="file-name">File Name</label>
+      <input type="text" id="file-name" placeholder="e.g. W2 Adjustment Q1 2025" />
+    </div>
+
+    <div class="field-group" style="max-width:350px">
+      <label class="field-label" for="override-select">Override Name to MID Generator</label>
+      <select id="override-select">
+        <option value="No">No</option>
+        <option value="Yes">Yes</option>
+      </select>
+    </div>
+
+    <div id="override-area" style="display:none; max-width:700px">
+      <div class="section-caption">Paste a table with two columns: <strong>MID</strong> and <strong>Amount</strong></div>
+      <textarea id="override-input" placeholder="M12345&#9;1500.00&#10;M67890&#9;2000.00" spellcheck="false" style="height:160px"></textarea>
+    </div>
+
+    <hr class="divider" />
+    <div class="section-header" style="margin-bottom:14px">Results</div>
+    <div id="bulk-results-area">
+      <div class="alert alert-info">Complete the Name to MID Generator tab first, or use the Override option above.</div>
+    </div>
+
+  </div><!-- /tab-tax -->
+
+</div><!-- /app -->
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════════════════════════
+const CORRECT_PW  = 'PayOps2026';
+const AUTH_KEY    = 'taxTool_authed';
+
+function checkAuth() {
+  return localStorage.getItem(AUTH_KEY) === '1';
+}
+function setAuth() {
+  localStorage.setItem(AUTH_KEY, '1');
+}
+function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+const pwInput  = document.getElementById('pw-input');
+const authBtn  = document.getElementById('auth-btn');
+const authErr  = document.getElementById('auth-error');
+
+function tryAuth() {
+  const val = pwInput.value.trim();
+  if (val === CORRECT_PW) {
+    setAuth();
+    showApp();
+  } else {
+    authErr.style.display = 'block';
+    pwInput.value = '';
+    pwInput.focus();
+  }
+}
+authBtn.addEventListener('click', tryAuth);
+pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryAuth(); });
+
+if (checkAuth()) showApp();
+
+// ═══════════════════════════════════════════════════════════
+//  TAB SWITCHING
+// ═══════════════════════════════════════════════════════════
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'tab-tax') renderBulk();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+//  PARSING
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Parse a pasted table (tab-separated or CSV) into an array of row-objects.
+ * Takes only the first `colCount` columns and names them with `colNames`.
+ */
+function parsePastedTable(text, colNames) {
+  text = (text || '').trim();
+  if (!text) return null;
+
+  const colCount = colNames.length;
+
+  // Try tab first, then comma
+  for (const sep of ['\t', ',']) {
+    try {
+      const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+      if (lines.length < 2) continue; // need at least header + 1 row
+
+      const parseRow = (line) => {
+        if (sep === '\t') return line.split('\t');
+        return parseCSVLine(line);
+      };
+
+      const headerCols = parseRow(lines[0]);
+      if (headerCols.length < colCount) continue;
+
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = parseRow(lines[i]);
+        if (cols.every(c => c.trim() === '')) continue; // skip blank rows
+        const row = {};
+        for (let j = 0; j < colCount; j++) {
+          row[colNames[j]] = (cols[j] || '').trim();
+        }
+        rows.push(row);
+      }
+      if (rows.length > 0) return rows;
+    } catch (_) { /* try next sep */ }
+  }
+  return null;
+}
+
+/** Minimal CSV line parser that handles quoted fields. */
+function parseCSVLine(line) {
+  const result = [];
+  let cur = '';
+  let inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuote && line[i + 1] === '"') { cur += '"'; i++; }
+      else { inQuote = !inQuote; }
+    } else if (ch === ',' && !inQuote) {
+      result.push(cur); cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  NORMALIZATION  (matches Python logic exactly)
+// ═══════════════════════════════════════════════════════════
+const normalize  = s => (typeof s === 'string' ? s.trim().toLowerCase() : '');
+const firstWord  = s => { const w = normalize(s).split(/\s+/).filter(Boolean); return w[0] || ''; };
+
+// ═══════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════
+// midResults: array of { Name, MID, Amount } — only matched rows
+let midResults = [];
+// disambigChoices: map from disambig key -> chosen MID (persists across re-renders)
+const disambigChoices = {};
+
+// ═══════════════════════════════════════════════════════════
+//  TAB 1 — CORE MATCHING LOGIC
+// ═══════════════════════════════════════════════════════════
+function buildResults(rows1, rows2) {
+  // Build lookup: (last, firstWord) -> [mid, ...]
+  const lookup = new Map();
+  for (const row of rows2) {
+    const key = normalize(row.last_name) + '\x00' + firstWord(row.first_name);
+    if (!lookup.has(key)) lookup.set(key, []);
+    lookup.get(key).push(row.mid);
+  }
+
+  const results = [];
+  for (const row of rows1) {
+    const fullName = row.name;
+    const amount   = row.amount;
+
+    let last, first;
+    if (fullName.includes(',')) {
+      const idx = fullName.indexOf(',');
+      last  = fullName.slice(0, idx);
+      first = fullName.slice(idx + 1);
+    } else {
+      last = fullName; first = '';
+    }
+
+    const key        = normalize(last) + '\x00' + firstWord(first);
+    const flippedKey = firstWord(first) + '\x00' + normalize(last);
+
+    let mids = lookup.get(key) || lookup.get(flippedKey) || null;
+
+    if (!mids) {
+      results.push({ Name: fullName.trim(), MID: 'NOT FOUND', Amount: amount, _ambiguous: false });
+    } else if (mids.length === 1) {
+      results.push({ Name: fullName.trim(), MID: mids[0], Amount: amount, _ambiguous: false });
+    } else {
+      // Ambiguous — use stored choice or default to first
+      const choiceKey = 'disambig_' + normalize(fullName);
+      if (!disambigChoices[choiceKey]) disambigChoices[choiceKey] = mids[0];
+      results.push({
+        Name: fullName.trim(),
+        MID: disambigChoices[choiceKey],
+        Amount: amount,
+        _ambiguous: true,
+        _options: mids,
+        _choiceKey: choiceKey,
+      });
+    }
+  }
+  return results;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TAB 1 — RENDER
+// ═══════════════════════════════════════════════════════════
+function renderMidResults() {
+  const raw1 = document.getElementById('table1-input').value;
+  const raw2 = document.getElementById('table2-input').value;
+  const area = document.getElementById('mid-results-area');
+
+  const df1 = parsePastedTable(raw1, ['name', 'amount']);
+  const df2 = parsePastedTable(raw2, ['mid', 'last_name', 'first_name']);
+
+  if (!raw1.trim() && !raw2.trim()) {
+    area.innerHTML = `<div class="alert alert-info">Paste data into both tables above to generate results.</div>`;
+    midResults = [];
+    return;
+  }
+  if (!df1) {
+    area.innerHTML = `<div class="alert alert-warning">Table 1 is empty or could not be parsed. Ensure it has a header row and at least two columns.</div>`;
+    midResults = [];
+    return;
+  }
+  if (!df2) {
+    area.innerHTML = `<div class="alert alert-warning">Table 2 is empty or could not be parsed. Ensure it has a header row and at least three columns (mid, last_name, first_name).</div>`;
+    midResults = [];
+    return;
+  }
+
+  const results  = buildResults(df1, df2);
+  const total    = results.length;
+  const matched  = results.filter(r => r.MID !== 'NOT FOUND').length;
+  const notFound = total - matched;
+  const ambiguous = results.filter(r => r._ambiguous);
+  const unmatched = results.filter(r => r.MID === 'NOT FOUND').map(r => r.Name);
+
+  // Store matched for Tab 2
+  midResults = results
+    .filter(r => r.MID !== 'NOT FOUND')
+    .map(r => ({ Name: r.Name, MID: r.MID, Amount: r.Amount }));
+
+  let html = '';
+
+  // Disambiguation UI
+  if (ambiguous.length > 0) {
+    html += `<div class="disambig-section">
+      <h4>⚠ ${ambiguous.length} name(s) matched multiple MIDs — please confirm the correct one below.</h4>`;
+    for (const entry of ambiguous) {
+      const opts = entry._options.map(m =>
+        `<option value="${escHtml(m)}"${m === disambigChoices[entry._choiceKey] ? ' selected' : ''}>${escHtml(m)}</option>`
+      ).join('');
+      html += `<div class="disambig-row">
+        <label>${escHtml(entry.Name)}</label>
+        <select data-choice-key="${escHtml(entry._choiceKey)}">${opts}</select>
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Metrics
+  html += `<div class="metrics-row">
+    <div class="metric-card"><div class="metric-value">${total}</div><div class="metric-label">Total Records</div></div>
+    <div class="metric-card"><div class="metric-value">${matched}</div><div class="metric-label">Matched</div></div>
+    <div class="metric-card"><div class="metric-value">${notFound}</div><div class="metric-label">Not Found</div></div>
+  </div>`;
+
+  // Results table
+  html += `<div class="table-wrap"><table>
+    <thead><tr><th>Name</th><th>MID</th><th>Amount</th></tr></thead>
+    <tbody>`;
+  for (const r of results) {
+    const cls = r.MID === 'NOT FOUND' ? ' class="not-found"' : '';
+    html += `<tr${cls}><td>${escHtml(r.Name)}</td><td>${escHtml(r.MID)}</td><td>${escHtml(r.Amount)}</td></tr>`;
+  }
+  html += `</tbody></table></div>`;
+
+  // Unmatched expander
+  if (unmatched.length > 0) {
+    html += `<details class="expander" style="margin-bottom:16px">
+      <summary>${notFound} unmatched name(s)</summary>
+      <ul>${unmatched.map(n => `<li>${escHtml(n)}</li>`).join('')}</ul>
+    </details>`;
+  }
+
+  // Download button
+  html += `<hr class="divider" />
+    <button class="btn btn-primary" id="mid-download-btn">Download CSV</button>`;
+
+  area.innerHTML = html;
+
+  // Wire up disambiguation selects
+  area.querySelectorAll('[data-choice-key]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      disambigChoices[sel.dataset.choiceKey] = sel.value;
+      renderMidResults();
+    });
+  });
+
+  // Wire up download
+  document.getElementById('mid-download-btn').addEventListener('click', () => {
+    const rows = results.map(r => [r.Name, r.MID, r.Amount]);
+    downloadCSV([['Name', 'MID', 'Amount'], ...rows], 'name_to_mid_results.csv');
+  });
+}
+
+// Debounce: re-render 300 ms after user stops typing
+let midTimer;
+function scheduleMidRender() {
+  clearTimeout(midTimer);
+  midTimer = setTimeout(renderMidResults, 300);
+}
+document.getElementById('table1-input').addEventListener('input', scheduleMidRender);
+document.getElementById('table2-input').addEventListener('input', scheduleMidRender);
+
+// ═══════════════════════════════════════════════════════════
+//  TAB 2 — BULK UPLOAD GENERATOR
+// ═══════════════════════════════════════════════════════════
+const overrideSelect = document.getElementById('override-select');
+const overrideArea   = document.getElementById('override-area');
+
+overrideSelect.addEventListener('change', () => {
+  overrideArea.style.display = overrideSelect.value === 'Yes' ? 'block' : 'none';
+  renderBulk();
+});
+document.getElementById('override-input').addEventListener('input', () => {
+  clearTimeout(bulkTimer); bulkTimer = setTimeout(renderBulk, 300);
+});
+document.getElementById('tax-year').addEventListener('input',   () => { clearTimeout(bulkTimer); bulkTimer = setTimeout(renderBulk, 150); });
+document.getElementById('w2-field').addEventListener('input',   () => { clearTimeout(bulkTimer); bulkTimer = setTimeout(renderBulk, 150); });
+document.getElementById('file-name').addEventListener('input',  () => { /* just affects filename */ });
+
+let bulkTimer;
+
+function renderBulk() {
+  const taxYear  = document.getElementById('tax-year').value.trim();
+  const w2Field  = document.getElementById('w2-field').value.trim();
+  const fileName = document.getElementById('file-name').value.trim() || 'bulk_upload_output';
+  const override = overrideSelect.value;
+  const area     = document.getElementById('bulk-results-area');
+
+  const COLS = ['Member ID', 'Tax Year', 'W2 Field', 'Adjustment Amount'];
+
+  let bulkRows = []; // [{...}]
+
+  if (override === 'Yes') {
+    const rawOverride = document.getElementById('override-input').value;
+    const df = parsePastedTable(rawOverride, ['mid', 'amount']);
+    if (!df || df.length === 0) {
+      area.innerHTML = `<div class="alert alert-info">Paste MID and Amount data in the override table above.</div>`;
+      return;
+    }
+    bulkRows = df.map(r => ({
+      'Member ID':         r.mid,
+      'Tax Year':          taxYear,
+      'W2 Field':          w2Field,
+      'Adjustment Amount': r.amount,
+    }));
+  } else {
+    if (midResults.length === 0) {
+      area.innerHTML = `<div class="alert alert-info">Complete the Name to MID Generator tab first to populate results here.</div>`;
+      return;
+    }
+    bulkRows = midResults.map(r => ({
+      'Member ID':         r.MID,
+      'Tax Year':          taxYear,
+      'W2 Field':          w2Field,
+      'Adjustment Amount': r.Amount,
+    }));
+  }
+
+  // Table
+  let html = `<div class="table-wrap"><table>
+    <thead><tr>${COLS.map(c => `<th>${escHtml(c)}</th>`).join('')}</tr></thead>
+    <tbody>`;
+  for (const row of bulkRows) {
+    html += `<tr>${COLS.map(c => `<td>${escHtml(row[c])}</td>`).join('')}</tr>`;
+  }
+  html += `</tbody></table></div>`;
+  html += `<hr class="divider" /><button class="btn btn-primary" id="bulk-download-btn">Download CSV</button>`;
+
+  area.innerHTML = html;
+
+  document.getElementById('bulk-download-btn').addEventListener('click', () => {
+    const csvRows = [COLS, ...bulkRows.map(r => COLS.map(c => r[c]))];
+    downloadCSV(csvRows, `${fileName}.csv`);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CSV DOWNLOAD  (Blob API)
+// ═══════════════════════════════════════════════════════════
+function csvEscapeField(v) {
+  const s = String(v == null ? '' : v);
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+function downloadCSV(rows, filename) {
+  const csv = rows.map(r => r.map(csvEscapeField).join(',')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════════════════════════
+function escHtml(s) {
+  return String(s == null ? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>
