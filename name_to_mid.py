@@ -24,6 +24,14 @@ if not st.session_state.authenticated:
 
 st.title("Tax Filing Adjustment Bulk Upload Tool")
 
+with st.sidebar:
+    if st.button("Clear Data", use_container_width=True, type="primary"):
+        keys_to_keep = {"authenticated"}
+        for k in list(st.session_state.keys()):
+            if k not in keys_to_keep:
+                del st.session_state[k]
+        st.rerun()
+
 st.markdown("""
 <style>
 button[data-testid="stNumberInputStepUp"],
